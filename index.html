@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>프롬프트 DB | CareerOne</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* ── 토큰 ── */
+  :root {
+    --bg:       #0e0f13;
+    --surface:  #16181f;
+    --card:     #1c1f2a;
+    --border:   #2a2d3a;
+    --accent:   #4f8ef7;
+    --accent2:  #a78bfa;
+    --gold:     #f0c040;
+    --text:     #e8eaf0;
+    --muted:    #7a7f96;
+    --tag-bg:   #1e2538;
+    --tag-text: #7eb3ff;
+    --radius:   10px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── 헤더 ── */
+  header {
+    background: linear-gradient(135deg, #0d1b3e 0%, #111827 60%, #0e0f13 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 32px 24px 28px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse 60% 80% at 50% -20%, rgba(79,142,247,.18) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .header-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    opacity: .85;
+  }
+  header h1 {
+    font-family: 'Noto Serif KR', serif;
+    font-size: clamp(22px, 4vw, 34px);
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    background: linear-gradient(90deg, #e8eaf0 30%, #7eb3ff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .header-sub {
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 300;
+  }
+  .stat-bar {
+    display: flex;
+    justify-content: center;
+    gap: 28px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+  }
+  .stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .stat-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .stat-label {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* ── 검색/필터 영역 ── */
+  .controls {
+    max-width: 980px;
+    margin: 28px auto 0;
+    padding: 0 20px;
+  }
+  .search-wrap {
+    position: relative;
+    margin-bottom: 14px;
+  }
+  .search-icon {
+    position: absolute;
+    left: 16px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    font-size: 16px;
+    pointer-events: none;
+  }
+  #searchInput {
+    width: 100%;
+    padding: 14px 16px 14px 46px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  #searchInput:focus { border-color: var(--accent); }
+  #searchInput::placeholder { color: var(--muted); }
+
+  .filters {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+  }
+  select {
+    padding: 8px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 13px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color .2s;
+  }
+  select:focus { border-color: var(--accent); }
+
+  .result-meta {
+    font-size: 12px;
+    color: var(--muted);
+    margin: 10px 0 18px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .result-meta span { color: var(--accent); }
+
+  /* ── 카드 그리드 ── */
+  .grid {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 0 20px 60px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+    gap: 16px;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    cursor: pointer;
+    transition: border-color .2s, transform .15s, box-shadow .2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    opacity: 0;
+    transition: opacity .2s;
+  }
+  .card:hover { border-color: #3a3f56; transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,0,0,.35); }
+  .card:hover::before { opacity: 1; }
+
+  .card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .card-title {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.45;
+    color: var(--text);
+    flex: 1;
+  }
+  .stars {
+    font-size: 11px;
+    color: var(--gold);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .card-summary {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.6;
+    margin-bottom: 12px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .badge-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .badge {
+    font-size: 10px;
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-weight: 500;
+    letter-spacing: .3px;
+  }
+  .badge-tool  { background: rgba(79,142,247,.15); color: #7eb3ff; border: 1px solid rgba(79,142,247,.25); }
+  .badge-type  { background: rgba(167,139,250,.12); color: #c4b5fd; border: 1px solid rgba(167,139,250,.2); }
+  .badge-cat   { background: rgba(52,211,153,.1);  color: #6ee7b7; border: 1px solid rgba(52,211,153,.2); }
+
+  .tag-row {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .tag {
+    font-size: 10px;
+    background: var(--tag-bg);
+    color: var(--tag-text);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+    margin-top: 4px;
+  }
+  .img-link {
+    color: var(--accent);
+    font-size: 11px;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .img-link:hover { text-decoration: underline; }
+
+  /* ── 모달 ── */
+  .overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.7);
+    backdrop-filter: blur(4px);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .overlay.open { display: flex; }
+  .modal {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    width: 100%;
+    max-width: 680px;
+    max-height: 88vh;
+    overflow-y: auto;
+    padding: 28px 30px;
+    position: relative;
+    animation: slideUp .2s ease;
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .modal-close {
+    position: absolute;
+    top: 16px; right: 18px;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    transition: color .2s, border-color .2s;
+  }
+  .modal-close:hover { color: var(--text); border-color: var(--accent); }
+  .modal-title {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    padding-right: 36px;
+    line-height: 1.4;
+  }
+  .modal-section { margin-bottom: 18px; }
+  .modal-label {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-family: 'IBM Plex Mono', monospace;
+    margin-bottom: 6px;
+  }
+  .modal-body {
+    font-size: 13px;
+    line-height: 1.75;
+    color: #c8ccd8;
+  }
+  .prompt-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-size: 12px;
+    font-family: 'IBM Plex Mono', monospace;
+    line-height: 1.7;
+    color: #a8c4f0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    position: relative;
+  }
+  .copy-btn {
+    position: absolute;
+    top: 10px; right: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: 'IBM Plex Mono', monospace;
+    transition: color .15s, border-color .15s;
+  }
+  .copy-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .copy-btn.copied { color: #6ee7b7; border-color: #6ee7b7; }
+
+  /* ── 로딩 / 빈화면 ── */
+  .loading {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+  }
+  .loading::after {
+    content: '';
+    display: block;
+    width: 32px; height: 32px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    margin: 16px auto 0;
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  /* ── 설정 안내 배너 ── */
+  .setup-banner {
+    background: rgba(79,142,247,.08);
+    border: 1px solid rgba(79,142,247,.25);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    margin: 20px auto;
+    max-width: 980px;
+    font-size: 13px;
+    color: #9db8e8;
+    display: none;
+  }
+  .setup-banner.show { display: block; }
+  .setup-banner strong { color: var(--accent); }
+  .setup-banner code {
+    font-family: 'IBM Plex Mono', monospace;
+    background: rgba(255,255,255,.06);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── 헤더 ── -->
+<header>
+  <div class="header-label">CareerOne · Prompt Library</div>
+  <h1>나만의 프롬프트 DB</h1>
+  <p class="header-sub">검증된 프롬프트를 검색하고 즉시 재활용하세요</p>
+  <div class="stat-bar">
+    <div class="stat"><span class="stat-num" id="statTotal">—</span><span class="stat-label">전체 프롬프트</span></div>
+    <div class="stat"><span class="stat-num" id="statTools">—</span><span class="stat-label">AI 툴</span></div>
+    <div class="stat"><span class="stat-num" id="statCats">—</span><span class="stat-label">카테고리</span></div>
+  </div>
+</header>
+
+<!-- ── 설정 안내 ── -->
+<div class="setup-banner" id="setupBanner">
+  ⚙️ <strong>연동 설정 필요:</strong>
+  상단 코드의 <code>SHEET_API_URL</code>에 Apps Script 배포 URL을 붙여넣어 주세요.
+  설정 방법은 동봉된 <strong>apps_script.gs</strong> 파일 상단 주석을 참고하세요.
+</div>
+
+<!-- ── 검색/필터 ── -->
+<div class="controls">
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="searchInput" placeholder="제목, 요약, 태그, 결과 메모 검색...">
+  </div>
+  <div class="filters">
+    <select id="filterTool"><option value="">전체 AI 툴</option></select>
+    <select id="filterType"><option value="">전체 작업 분류</option></select>
+    <select id="filterCat"><option value="">전체 카테고리</option></select>
+    <select id="filterStar">
+      <option value="">전체 평가</option>
+      <option value="5">★★★★★</option>
+      <option value="4">★★★★ 이상</option>
+      <option value="3">★★★ 이상</option>
+    </select>
+  </div>
+  <div class="result-meta" id="resultMeta"></div>
+</div>
+
+<!-- ── 카드 그리드 ── -->
+<div class="grid" id="grid">
+  <div class="loading" id="loading">데이터 불러오는 중</div>
+</div>
+
+<!-- ── 모달 ── -->
+<div class="overlay" id="overlay" onclick="closeModal(event)">
+  <div class="modal" id="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// ⚙️ 설정: Apps Script 배포 URL을 여기에 붙여넣으세요
+// ============================================================
+const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbzfniMoMd6mgtbNRcLl-pefj7iCbrieHV8IFPHdnGayK1ITCq1ROu9Lb-xSMz2qh9W1/exec";
+// ============================================================
+
+let allData = [];
+
+// 컬럼 인덱스 매핑 (Google Sheets 헤더 순서와 일치)
+const COL = {
+  tool:    "AI 툴명",
+  type:    "작업 분류",
+  cat:     "세부 카테고리",
+  title:   "프롬프트 제목",
+  summary: "프롬프트 요약",
+  prompt:  "요청 프롬프트 (전문)",
+  memo:    "결과물 메모",
+  imgLink: "결과물 캡처 링크",
+  created: "생성 날짜",
+  used:    "최근 사용일",
+  stars:   "품질 평가",
+  tags:    "태그",
+};
+
+async function loadData() {
+  if (SHEET_API_URL === "YOUR_APPS_SCRIPT_URL_HERE") {
+    document.getElementById("setupBanner").classList.add("show");
+    document.getElementById("loading").style.display = "none";
+    // 데모 데이터로 미리보기
+    renderCards(DEMO_DATA);
+    buildFilters(DEMO_DATA);
+    updateStats(DEMO_DATA);
+    return;
+  }
+  try {
+    const res = await fetch(SHEET_API_URL);
+    const json = await res.json();
+    allData = json.data || [];
+    renderCards(allData);
+    buildFilters(allData);
+    updateStats(allData);
+  } catch (e) {
+    document.getElementById("loading").innerHTML = "⚠️ 데이터를 불러오지 못했습니다. Apps Script URL을 확인해 주세요.";
+  }
+}
+
+function starCount(starStr) {
+  return (starStr.match(/★/g) || []).length;
+}
+
+function buildFilters(data) {
+  const tools = [...new Set(data.map(d => d[COL.tool]).filter(Boolean))];
+  const types = [...new Set(data.map(d => d[COL.type]).filter(Boolean))];
+  const cats  = [...new Set(data.map(d => d[COL.cat]).filter(Boolean))];
+
+  fillSelect("filterTool", tools);
+  fillSelect("filterType", types);
+  fillSelect("filterCat",  cats);
+}
+
+function fillSelect(id, options) {
+  const sel = document.getElementById(id);
+  const first = sel.options[0];
+  sel.innerHTML = "";
+  sel.appendChild(first);
+  options.forEach(o => {
+    const opt = document.createElement("option");
+    opt.value = o; opt.textContent = o;
+    sel.appendChild(opt);
+  });
+}
+
+function updateStats(data) {
+  document.getElementById("statTotal").textContent = data.length;
+  document.getElementById("statTools").textContent = new Set(data.map(d => d[COL.tool]).filter(Boolean)).size;
+  document.getElementById("statCats").textContent  = new Set(data.map(d => d[COL.cat]).filter(Boolean)).size;
+}
+
+function getFiltered() {
+  const q     = document.getElementById("searchInput").value.trim().toLowerCase();
+  const tool  = document.getElementById("filterTool").value;
+  const type  = document.getElementById("filterType").value;
+  const cat   = document.getElementById("filterCat").value;
+  const star  = document.getElementById("filterStar").value;
+
+  return allData.filter(d => {
+    const searchStr = [d[COL.title], d[COL.summary], d[COL.tags], d[COL.memo]].join(" ").toLowerCase();
+    if (q && !searchStr.includes(q)) return false;
+    if (tool && d[COL.tool] !== tool) return false;
+    if (type && d[COL.type] !== type) return false;
+    if (cat  && d[COL.cat]  !== cat)  return false;
+    if (star && starCount(d[COL.stars]) < parseInt(star)) return false;
+    return true;
+  });
+}
+
+function renderCards(data) {
+  const grid = document.getElementById("grid");
+  document.getElementById("loading").style.display = "none";
+
+  if (data.length === 0) {
+    grid.innerHTML = '<div class="empty">😶 검색 결과가 없습니다.</div>';
+    document.getElementById("resultMeta").innerHTML = "";
+    return;
+  }
+
+  document.getElementById("resultMeta").innerHTML =
+    `<span>${data.length}</span>개 프롬프트`;
+
+  grid.innerHTML = data.map((d, i) => {
+    const tags = d[COL.tags] ? d[COL.tags].split(",").map(t => t.trim()).filter(Boolean) : [];
+    const tagHtml = tags.slice(0, 4).map(t => `<span class="tag">${t}</span>`).join("");
+    const hasImg = d[COL.imgLink] && d[COL.imgLink].startsWith("http");
+
+    return `
+      <div class="card" onclick="openModal(${i})">
+        <div class="card-top">
+          <div class="card-title">${d[COL.title] || "(제목 없음)"}</div>
+          <div class="stars">${d[COL.stars] || ""}</div>
+        </div>
+        <div class="card-summary">${d[COL.summary] || ""}</div>
+        <div class="badge-row">
+          ${d[COL.tool] ? `<span class="badge badge-tool">${d[COL.tool]}</span>` : ""}
+          ${d[COL.type] ? `<span class="badge badge-type">${d[COL.type]}</span>` : ""}
+          ${d[COL.cat]  ? `<span class="badge badge-cat">${d[COL.cat]}</span>`  : ""}
+        </div>
+        ${tagHtml ? `<div class="tag-row">${tagHtml}</div>` : ""}
+        <div class="card-footer">
+          <span>${d[COL.created] || ""}</span>
+          ${hasImg ? `<a class="img-link" href="${d[COL.imgLink]}" target="_blank" onclick="event.stopPropagation()">📷 캡처 보기</a>` : ""}
+        </div>
+      </div>`;
+  }).join("");
+}
+
+// 현재 렌더된 데이터를 따로 추적
+let currentData = [];
+
+function applyFilter() {
+  currentData = getFiltered();
+  renderCards(currentData);
+}
+
+// 필터 이벤트
+["searchInput","filterTool","filterType","filterCat","filterStar"]
+  .forEach(id => document.getElementById(id).addEventListener("input", applyFilter));
+
+// 모달
+function openModal(idx) {
+  const d = currentData[idx];
+  if (!d) return;
+  const tags = d[COL.tags] ? d[COL.tags].split(",").map(t => t.trim()).filter(Boolean) : [];
+  const hasImg = d[COL.imgLink] && d[COL.imgLink].startsWith("http");
+
+  document.getElementById("modalContent").innerHTML = `
+    <div class="modal-title">${d[COL.title] || "(제목 없음)"}</div>
+    <div class="badge-row" style="margin-bottom:16px">
+      ${d[COL.tool] ? `<span class="badge badge-tool">${d[COL.tool]}</span>` : ""}
+      ${d[COL.type] ? `<span class="badge badge-type">${d[COL.type]}</span>` : ""}
+      ${d[COL.cat]  ? `<span class="badge badge-cat">${d[COL.cat]}</span>`  : ""}
+      ${d[COL.stars] ? `<span style="font-size:13px;color:#f0c040">${d[COL.stars]}</span>` : ""}
+    </div>
+
+    ${d[COL.summary] ? `
+    <div class="modal-section">
+      <div class="modal-label">요약</div>
+      <div class="modal-body">${d[COL.summary]}</div>
+    </div>` : ""}
+
+    <div class="modal-section">
+      <div class="modal-label">요청 프롬프트</div>
+      <div class="prompt-box" id="promptText">${d[COL.prompt] || ""}
+        <button class="copy-btn" onclick="copyPrompt()">복사</button>
+      </div>
+    </div>
+
+    ${d[COL.memo] ? `
+    <div class="modal-section">
+      <div class="modal-label">결과물 메모</div>
+      <div class="modal-body">${d[COL.memo]}</div>
+    </div>` : ""}
+
+    ${tags.length ? `
+    <div class="modal-section">
+      <div class="modal-label">태그</div>
+      <div class="tag-row">${tags.map(t => `<span class="tag">${t}</span>`).join("")}</div>
+    </div>` : ""}
+
+    <div style="font-size:12px;color:var(--muted);font-family:'IBM Plex Mono',monospace;display:flex;gap:20px;flex-wrap:wrap;margin-top:8px">
+      ${d[COL.created] ? `<span>생성: ${d[COL.created]}</span>` : ""}
+      ${d[COL.used]    ? `<span>최근 사용: ${d[COL.used]}</span>` : ""}
+      ${hasImg ? `<a class="img-link" href="${d[COL.imgLink]}" target="_blank">📷 결과물 캡처 열기</a>` : ""}
+    </div>
+  `;
+
+  document.getElementById("overlay").classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+
+function closeModal(e) {
+  if (e && e.target !== document.getElementById("overlay")) return;
+  document.getElementById("overlay").classList.remove("open");
+  document.body.style.overflow = "";
+}
+
+function copyPrompt() {
+  const box = document.getElementById("promptText");
+  const text = box.childNodes[0]?.textContent?.trim() || "";
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = box.querySelector(".copy-btn");
+    btn.textContent = "✓ 복사됨";
+    btn.classList.add("copied");
+    setTimeout(() => { btn.textContent = "복사"; btn.classList.remove("copied"); }, 2000);
+  });
+}
+
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal({}); });
+
+// ── 데모 데이터 (URL 설정 전 미리보기용) ──
+const DEMO_DATA = [
+  {
+    "AI 툴명": "Claude AI", "작업 분류": "클리닉", "세부 카테고리": "면접 준비",
+    "프롬프트 제목": "삼성전자 HBM 면접 질문 뱅크 생성",
+    "프롬프트 요약": "이력서+경험자료 기반 직무 맞춤 면접 질문 15개+모범답변 생성",
+    "요청 프롬프트 (전문)": "해당 학생의 이력서와 경험정리 자료를 바탕으로, 삼성전자 [직무명] 포지션 면접에 최적화된 예상 질문 15개와 모범답변을 생성해 주세요. 질문은 직무역량/인성/지원동기 3개 영역으로 구분하고, 각 답변은 구체적 경험을 중심으로 작성해 주세요.",
+    "결과물 메모": "직무 질문 정확도 높음. 학생이 3라운드 통과. 인성 질문 비중 조정 필요했음.",
+    "결과물 캡처 링크": "", "생성 날짜": "2025-01-15", "최근 사용일": "2025-03-10",
+    "품질 평가": "★★★★★", "태그": "삼성전자,HBM,면접,신입,이공계"
+  },
+  {
+    "AI 툴명": "Claude AI", "작업 분류": "강의자료", "세부 카테고리": "자기소개서",
+    "프롬프트 제목": "자소서 A vs B 비교 슬라이드 문구 생성",
+    "프롬프트 요약": "좋은 자소서/나쁜 자소서 대비 PPT 문구 6개 섹션 생성",
+    "요청 프롬프트 (전문)": "자기소개서 강의용 PPT 슬라이드를 만들려고 합니다. 각 항목별로 '나쁜 예(A)'와 '좋은 예(B)'를 대비시키는 방식으로, 지원동기/성장과정/직무역량/입사 후 포부/성격의 장단점/특기사항 6개 섹션의 예시 문구를 작성해 주세요.",
+    "결과물 메모": "수강생 반응 매우 좋음. A/B 대비 방식이 직관적. 실제 강의에서 토론 주제로 활용.",
+    "결과물 캡처 링크": "", "생성 날짜": "2024-11-20", "최근 사용일": "2025-02-05",
+    "품질 평가": "★★★★★", "태그": "자소서,강의,PPT,A/B비교,대학생"
+  },
+  {
+    "AI 툴명": "Claude AI", "작업 분류": "사업", "세부 카테고리": "프로그램 기획",
+    "프롬프트 제목": "광주고용센터 기업분석경진대회 3일 프로그램 설계",
+    "프롬프트 요약": "청년 구직자 대상 기업분석 경진대회 3일 커리큘럼+평가루브릭 설계",
+    "요청 프롬프트 (전문)": "광주고용센터 청년 구직자 대상으로 기업분석경진대회를 운영하려 합니다. 3일 프로그램 커리큘럼(일정/내용/진행방식)과 100점 만점 평가루브릭을 설계해 주세요. 평가 원칙: AI 활용 자체를 감점/가점하지 않고, AI 활용의 질을 평가합니다.",
+    "결과물 메모": "사업 제안서 통과. 평가루브릭 완성도 높다는 피드백. AI 활용 평가 기준이 차별화 포인트.",
+    "결과물 캡처 링크": "", "생성 날짜": "2024-10-05", "최근 사용일": "2024-10-05",
+    "품질 평가": "★★★★☆", "태그": "고용센터,경진대회,기업분석,청년,프로그램설계"
+  }
+];
+
+// 초기 렌더
+allData = DEMO_DATA;
+currentData = DEMO_DATA;
+loadData();
+</script>
+</body>
+</html>
